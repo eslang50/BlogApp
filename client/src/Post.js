@@ -1,17 +1,27 @@
 import './App.css';
+import {format} from "date-fns"
+import { Link } from 'react-router-dom';
 
-export default function Post() {
+export default function Post({_id, title, summary, content, cover, createdAt, author}) {
+
   return (
     <div className="post"> 
-    <div className="image"><img src="https://images.squarespace-cdn.com/content/v1/5acea5f9f2e6b1da315acf14/1687814629484-Y0UHDWRKYAPA5IQC8B0O/g-Un-vHvg5ezU-unsplash.jpg?format=750w" alt="Google Building" /></div>
+    <div className="image">
+      <Link to={`/post/${_id}`}>
+        <img src={'http://localhost:4000/'+cover} alt=""/>
+      </Link>
+    </div>
     <div className="texts">
-      <h2>What makes Google's Organizational Culture Stand Out?</h2>
+    <Link to={`/post/${_id}`}>
+      <h2>{title}</h2>
+    </Link>
       <p className="info">
         <a href="" className="author">Ethan Liu</a>
-        <time>2023-07-16</time>
+        <time>{format(new Date(createdAt), 'MMM d, yyyy HH:mm')}</time>
       </p>
-      <p className="summary">Lorem ipsum dolor sit amet consectetur adipisicing elit. Eius nemo alias cupiditate totam iure neque sed ratione, aspernatur pariatur suscipit ad aut quos consequuntur impedit magni error, architecto vero aliquid?</p>
+      <p className="summary">{summary}</p>
     </div>
   </div>
   )
 }
+

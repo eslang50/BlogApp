@@ -8,7 +8,7 @@ export default function RegisterPage() {
       const response = await fetch('http://localhost:4000/register', {
         method: 'POST',
         body: JSON.stringify({username, password}),
-        headers: {'Content-Type': 'application/json'}
+        headers: {'Content-Type': 'applic ation/json'}
       })
       if(response.status === 200) {
         alert('Success')

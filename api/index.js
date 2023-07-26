@@ -17,6 +17,7 @@ const salt = bcrypt.genSaltSync(10)
 app.use(cors({credentials:true,origin:'http://localhost:3000'}));
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(__dirname + '/uploads'));
 
 mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
 
@@ -67,14 +68,64 @@ app.post('/post', uploadMiddleware.single('file'), async (request, response) => 
   const extension = parts[parts.length - 1]
   const newPath = `${path}.${extension}`;
   fs.renameSync(path, newPath)
-  const {title,summary,content} = request.body;
-  const postDoc = await Post.create({
-    title,
-    summary,
-    content,
-    cover: newPath,
-  })
+
+  const {token} = request.cookies;
+  jwt.verify(token, jwtSecret, {}, async (err,info) => {
+    if(err) throw err;
+    const {title,summary,content} = request.body;
+    const postDoc = await Post.create({
+      title,
+      summary,
+      content,
+      cover: newPath,
+      author: info.id,
+    });
+    response.json(postDoc);
+  });
+});
+
+app.put('/post', uploadMiddleware.single('file'), async (request, response) => {
+  let newPath = null;
+  if(request.file) {
+    const {originalname, path} = request.file;
+    const parts = originalname.split('.');
+    const extension = parts[parts.length - 1];
+    newPath = `${path}.${extension}`
+    fs.renameSync(path, newPath);
+  }
+  const {token} = request.cookies;
+  
+  jwt.verify(token, jwtSecret, {}, async (err,info) => {
+    if(err) throw err; 
+    const {id,title,summary,content} = request.body;
+    const postDoc = await Post.findById(id)
+    const isAuthor = JSON.stringify(postDoc.author) === JSON.stringify(info.id);
+    if(!isAuthor) {
+      return response.status(400).json('You are not the author')
+    }
+    await postDoc.updateOne(
+      {title,
+       summary,
+       content, 
+       cover: newPath ? newPath : postDoc.cover
+      });
+    response.json(postDoc);
+  });
+})
+
+app.get('/post', async (request,response) => {
+  response.json(await Post.find()
+  .populate('author', ['username'])
+  .sort({createdAt: -1})
+  .limit(20)
+  )
+})
+
+app.get('/post/:id', async(request, response) => {
+  const {id} = request.params
+  const postDoc = await Post.findById(id).populate('author', ['username']);
   response.json(postDoc);
 })
+
 
 app.listen(4000)
