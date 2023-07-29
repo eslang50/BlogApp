@@ -70,14 +70,14 @@ export default function EditPost() {
       // Handle fetch error
       console.error('Fetch error:', error);
     }
-    // const response = await fetch('http://localhost:4000/post', {
-    //   method: 'PUT',
-    //   body: data,
-    //   credentials: 'include',
-    // })
-    // if(response.ok) {
-    //   setRedirect(true)
-    // }
+    const response = await fetch('http://localhost:4000/post', {
+      method: 'PUT',
+      body: data,
+      credentials: 'include',
+    })
+    if(response.ok) {
+      setRedirect(true)
+    }
   }
   
   if(redirect) {

@@ -22,6 +22,7 @@ app.use('/uploads', express.static(__dirname + '/uploads'));
 mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
 
 app.post('/register', async (request, response) => {
+  console.log(request.body)
   const {username, password} = request.body;
   try {
     const userDoc = await User.create({
@@ -29,6 +30,7 @@ app.post('/register', async (request, response) => {
       password:bcrypt.hashSync(password,salt)})
     response.json(userDoc)
   } catch(error) {
+    console.log(userDoc)
     response.status(400).json(error)
   }
 });
@@ -53,6 +55,7 @@ app.post('/login', async (request, response) => {
 app.get('/profile', (request, response) => {
   const {token} = request.cookies;
   jwt.verify(token, jwtSecret, {}, (err,info) => {
+    console.log('Token:', token);
     if(err) throw err;
     response.json(info);
   })
@@ -123,9 +126,8 @@ app.get('/post', async (request,response) => {
 
 app.get('/post/:id', async(request, response) => {
   const {id} = request.params
-  const postDoc = await Post.findById(id).populate('author', ['username']);
+  const postDoc = await Post.findById(id).populate('author', 'username');
   response.json(postDoc);
 })
-
 
 app.listen(4000)
