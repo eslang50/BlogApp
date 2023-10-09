@@ -8,6 +8,8 @@ const jwt = require('jsonwebtoken')
 const {mongoPassword, jwtSecret, S3_ACCESS_KEY, S3_SECRET_ACCESS_KEY} = require('./secrets');
 const cookieParser = require('cookie-parser');
 const bucket = 'ethan-blog-app'
+const multer = require('multer');
+const uploadMiddleware = multer({dest:'/tmp'});
 const {S3Client, PutObjectCommand} = require('@aws-sdk/client-s3');
 const fs = require('fs')
 const app = express();
@@ -88,9 +90,10 @@ app.post('/logout', (request, response) => {
   response.cookie('token', '').json('ok')
 })
 
-app.post('/post', async (request, response) => {
+app.post('/post', uploadMiddleware.single('file'), async (request, response) => {
   mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
-  const {originalname, path, mimetype} = request.file;
+  console.log(request)
+  const {path, originalname, mimetype} = request.file;
   const url = await uploadToS3(path, originalname, mimetype);
 
   const {token} = request.cookies;
@@ -108,7 +111,7 @@ app.post('/post', async (request, response) => {
   });
 });
 
-app.put('/post', async (request, response) => {  
+app.put('/post', uploadMiddleware.single('file'), async (request, response) => {  
   mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   const {originalname, path, mimetype} = request.file;
   const url = await uploadToS3(path, originalname, mimetype);
