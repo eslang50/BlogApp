@@ -5,10 +5,10 @@ const User = require('./models/User')
 const Post = require('./models/Post')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const {mongoPassword, jwtSecret} = require('./secrets');
+const {mongoPassword, jwtSecret, S3_ACCESS_KEY, S3_SECRET_ACCESS_KEY} = require('./secrets');
 const cookieParser = require('cookie-parser');
-const multer = require('multer')
-const uploadMiddleware = multer({dest: 'uploads/'})
+const bucket = 'ethan-blog-app'
+const {S3Client, PutObjectCommand} = require('@aws-sdk/client-s3');
 const fs = require('fs')
 const app = express();
 
@@ -19,9 +19,30 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(__dirname + '/uploads'));
 
-mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
+
+async function uploadToS3(path, originalFileName, mimetype) {
+  const client = new S3Client({
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId: S3_ACCESS_KEY,
+      secretAccessKey: S3_SECRET_ACCESS_KEY
+    }
+  })
+  const parts = originalFileName.split('.')
+  const extension = parts[parts.length - 1];
+  const newFileName = Date.now() + '.' + extension;
+  const data = await client.send(new PutObjectCommand({
+    Bucket: bucket,
+    Body: fs.readFileSync(path),
+    Key: newFileName,
+    ContentType: mimetype,
+    ACL: 'public-read'
+  }));
+  return `https://${bucket}.s3.amazonaws.com/${newFileName}`;
+}
 
 app.post('/register', async (request, response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   console.log(request.body)
   const {username, password} = request.body;
   try {
@@ -36,6 +57,7 @@ app.post('/register', async (request, response) => {
 });
 
 app.post('/login', async (request, response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   const {username, password} = request.body;
   const userDoc = await User.findOne({username})
   const correctPass = bcrypt.compareSync(password, userDoc.password)
@@ -53,6 +75,7 @@ app.post('/login', async (request, response) => {
 });
 
 app.get('/profile', (request, response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   const {token} = request.cookies;
   jwt.verify(token, jwtSecret, {}, (err,info) => {
     console.log('Token:', token);
@@ -65,12 +88,10 @@ app.post('/logout', (request, response) => {
   response.cookie('token', '').json('ok')
 })
 
-app.post('/post', uploadMiddleware.single('file'), async (request, response) => {
-  const {originalname, path} = request.file;
-  const parts = originalname.split('.');
-  const extension = parts[parts.length - 1]
-  const newPath = `${path}.${extension}`;
-  fs.renameSync(path, newPath)
+app.post('/post', async (request, response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
+  const {originalname, path, mimetype} = request.file;
+  const url = await uploadToS3(path, originalname, mimetype);
 
   const {token} = request.cookies;
   jwt.verify(token, jwtSecret, {}, async (err,info) => {
@@ -80,22 +101,18 @@ app.post('/post', uploadMiddleware.single('file'), async (request, response) => 
       title,
       summary,
       content,
-      cover: newPath,
+      cover: url,
       author: info.id,
     });
     response.json(postDoc);
   });
 });
 
-app.put('/post', uploadMiddleware.single('file'), async (request, response) => {
-  let newPath = null;
-  if(request.file) {
-    const {originalname, path} = request.file;
-    const parts = originalname.split('.');
-    const extension = parts[parts.length - 1];
-    newPath = `${path}.${extension}`
-    fs.renameSync(path, newPath);
-  }
+app.put('/post', async (request, response) => {  
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
+  const {originalname, path, mimetype} = request.file;
+  const url = await uploadToS3(path, originalname, mimetype);
+  
   const {token} = request.cookies;
   
   jwt.verify(token, jwtSecret, {}, async (err,info) => {
@@ -110,13 +127,14 @@ app.put('/post', uploadMiddleware.single('file'), async (request, response) => {
       {title,
        summary,
        content, 
-       cover: newPath ? newPath : postDoc.cover
+       cover: url ? url : postDoc.cover
       });
     response.json(postDoc);
   });
 })
 
 app.get('/post', async (request,response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   response.json(await Post.find()
   .populate('author', ['username'])
   .sort({createdAt: -1})
@@ -125,6 +143,7 @@ app.get('/post', async (request,response) => {
 })
 
 app.get('/post/:id', async(request, response) => {
+  mongoose.connect(`mongodb+srv://eslangliu:${mongoPassword}@cluster0.ojfjibw.mongodb.net/?retryWrites=true&w=majority`);
   const {id} = request.params
   const postDoc = await Post.findById(id).populate('author', 'username');
   response.json(postDoc);
